@@ -6,9 +6,10 @@ import argparse
 import requests
 
 
-def get_download_urls(vimeo_url):
+def get_download_urls(vimeo_url, referer):
+    headers = { 'Referer': referer } if referer else {}
     r = requests.get('https://player.vimeo.com/video/%s' %
-                     vimeo_url.split('/')[-1])
+                     vimeo_url.split('/')[-1], headers=headers)
     matches = re.findall(r'"(.*?)"', r.text)
     results = [m for m in matches if '?expires=' in m]
     if len(results) == 0:
@@ -38,13 +39,15 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('url',
                         help='link to the video page (e.g: https://vimeo.com/XXXXXXXXX)')
+    parser.add_argument('-r', '--referer',
+                        help='domain to specify as "Referer" (for private videos)')
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
     print('getting download urls...\n')
-    download_urls = get_download_urls(args.url)
+    download_urls = get_download_urls(args.url, args.referer)
     display_options(download_urls)
 
 if __name__ == '__main__':
