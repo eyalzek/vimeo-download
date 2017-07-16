@@ -4,10 +4,24 @@ import re
 import sys
 import argparse
 import requests
+from urlparse import urlparse
+
+
+def get_vimeo_links_from_page(url):
+    r = requests.get(url)
+    return re.findall('http[s]?://player.vimeo.com/video/\d+', r.content)
+
+
+def get_referer(url, referer):
+    if referer:
+        return referer
+    else:
+        uri = urlparse(url)
+        return '%s://%s' % (uri.scheme, uri.netloc)
 
 
 def get_download_urls(vimeo_url, referer):
-    headers = { 'Referer': referer } if referer else {}
+    headers = {'Referer': referer} if referer else {}
     r = requests.get('https://player.vimeo.com/video/%s' %
                      vimeo_url.split('/')[-1], headers=headers)
     matches = re.findall(r'"(.*?)"', r.text)
@@ -30,7 +44,8 @@ def display_options(download_urls):
     quality = ['High', 'Medium', 'Low'][-1 * len(download_urls):]
     options = sorted(get_content_size(download_urls),
                      key=lambda k: k['size'], reverse=True)
-    for i in xrange(len(download_urls)):
+    l = len(download_urls) if len(download_urls) < 3 else 3
+    for i in xrange(l):
         print('%s quality (%sMB):' % (quality[i], options[i]['size']))
         print('%s\n' % options[i]['url'])
 
@@ -38,7 +53,8 @@ def display_options(download_urls):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('url',
-                        help='link to the video page (e.g: https://vimeo.com/XXXXXXXXX)')
+                        help='link to the video page (e.g: https://vimeo.com/XXXXXXXXX),'
+                        ' or to a page containing vimeo links')
     parser.add_argument('-r', '--referer',
                         help='domain to specify as "Referer" (for private videos)')
     return parser.parse_args()
@@ -46,9 +62,18 @@ def parse_args():
 
 def main():
     args = parse_args()
-    print('getting download urls...\n')
-    download_urls = get_download_urls(args.url, args.referer)
-    display_options(download_urls)
+    if 'vimeo' in args.url:
+        urls = [args.url]
+    else:
+        print('getting vimeo urls from page...\n')
+        urls = get_vimeo_links_from_page(args.url)
+        print('found %d vimeo videos' % len(urls))
+    referer = get_referer(args.url, args.referer)
+    print referer
+    for url in urls:
+        print('getting download urls for %s\n' % url)
+        download_urls = get_download_urls(url, referer)
+        display_options(download_urls)
 
 if __name__ == '__main__':
     main()
