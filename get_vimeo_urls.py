@@ -9,7 +9,7 @@ from urlparse import urlparse
 
 def get_vimeo_links_from_page(url):
     r = requests.get(url)
-    return re.findall('http[s]?://player.vimeo.com/video/\d+', r.content)
+    return re.findall('//player.vimeo.com/video/\d+', r.content)
 
 
 def get_referer(url, referer):
